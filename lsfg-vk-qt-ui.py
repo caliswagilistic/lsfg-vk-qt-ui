@@ -87,35 +87,58 @@ class ProfileInputDialog(QDialog):
         btn_layout.addStretch()
 
         layout.addLayout(btn_layout)
+        self.app_name_edit.setFocus()
 
     def get_inputs(self):
         return self.display_name_edit.text().strip(), self.app_name_edit.text().strip()
 
     def list_open_apps(self):
+        import subprocess
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton
+
         bash_script = """
-    for pid in /proc/[0-9]*; do
-        owner=$(stat -c %U "$pid" 2>/dev/null)
-        if [[ "$owner" == "$USER" ]]; then
-            if grep -qi 'vulkan' "$pid/maps" 2>/dev/null; then
-                procname=$(cat "$pid/comm" 2>/dev/null)
-                if [[ -n "$procname" ]]; then
-                    printf "%s\\n" "$procname"
+        for pid in /proc/[0-9]*; do
+            owner=$(stat -c %U "$pid" 2>/dev/null)
+            if [[ "$owner" == "$USER" ]]; then
+                if grep -qi 'vulkan' "$pid/maps" 2>/dev/null; then
+                    procname=$(cat "$pid/comm" 2>/dev/null)
+                    if [[ -n "$procname" ]]; then
+                        printf "%s\\n" "$procname"
+                    fi
                 fi
             fi
-        fi
-    done | sort -u
-    """
-        import subprocess
+        done | sort -u
+        """
 
         try:
             result = subprocess.run(["bash", "-c", bash_script], capture_output=True, text=True, timeout=5)
-            output = result.stdout.strip()
-            if not output:
-                output = "No Vulkan apps found owned by current user."
-        except Exception as e:
-            output = f"Failed to list apps:\n{e}"
+            app_list = result.stdout.strip().splitlines()
 
-        QMessageBox.information(self, "Currently Open Vulkan Apps", output)
+            if not app_list:
+                QMessageBox.information(self, "Info", "No Vulkan apps found.")
+                return
+
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Select a Running App")
+            layout = QVBoxLayout(dialog)
+
+            list_widget = QListWidget()
+            list_widget.addItems(app_list)
+            layout.addWidget(list_widget)
+
+            close_btn = QPushButton("Cancel")
+            layout.addWidget(close_btn)
+            close_btn.clicked.connect(dialog.reject)
+
+            def on_item_clicked(item):
+                self.app_name_edit.setText(item.text())
+                dialog.accept()
+
+            list_widget.itemClicked.connect(on_item_clicked)
+            dialog.exec()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to list apps:\n{e}")
 
 class ToggleSwitch(QAbstractButton):
     def __init__(self, parent=None, width=50, height=25):
@@ -423,7 +446,7 @@ class MainWindow(QMainWindow):
             }}
             QToolTip {{
                 color: black;
-                background-color: #f0f0f0;
+                background-color:
                 border: 1px solid gray;
                 padding: 4px;
             }}
@@ -458,7 +481,6 @@ class MainWindow(QMainWindow):
         sidebar.setFixedWidth(250)
         sidebar.setLayout(layout)
         return sidebar
-
 
     def build_settings(self):
         layout = QVBoxLayout()
@@ -738,7 +760,6 @@ class MainWindow(QMainWindow):
             self.real_name_label.setText(f'App: {p.exe}')
         else:
             self.real_name_label.setText("")
-
 
         self.mode_combo.blockSignals(True)
         self.mode_combo.setCurrentText(p.multiplier)
