@@ -1,7 +1,8 @@
 # lsfg-vk-qt-ui
 qt user interface for [lsfg-vk](https://github.com/PancakeTAS/lsfg-vk/)
 
-not officially endorsed by them
+not officially endorsed by them, nor should it be
+
 ## dependencies
 - [lsfg-vk](https://github.com/PancakeTAS/lsfg-vk/)
 - Python 3.7+
