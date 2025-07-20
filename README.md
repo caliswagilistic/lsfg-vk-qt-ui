@@ -11,6 +11,8 @@ install dependencies with:
 ```bash
 pip install PySide6 toml
 ```
+
+## installing
 download and run with
 ```bash
 git clone https://github.com/caliswagilistic/lsfg-vk-qt-ui.git
@@ -31,6 +33,23 @@ Icon=/icon/if/you/want.png
 
 for the "Game Profiles" just put the name of the executable you want it on.
 
+## troubleshoot
+if you're having trouble finding the correct app name for your game, run this in a bash script and it should list it for you
+```bash
+for pid in /proc/[0-9]*; do
+    owner=$(stat -c %U "$pid" 2>/dev/null)
+    if [[ "$owner" == "$USER" ]]; then
+        if grep -qi 'vulkan' "$pid/maps" 2>/dev/null; then
+            procname=$(cat "$pid/comm" 2>/dev/null)
+            if [[ -n "$procname" ]]; then
+                printf "PID %s: %s\n" "$(basename "$pid")" "$procname"
+            fi
+        fi
+    fi
+done
+```
+
+## etc, etc
 heres a screenshot of the app:
 
 ![example](example.png)
