@@ -13,7 +13,7 @@ pip install PySide6 toml
 ```
 run with
 ```bash
-python /script/path/here.py
+python /path/to/lsfg-vk-ui.py
 ```
 would recommended creating a .desktop file that with an exec of Exec=python /path/to/lsfg-vk-ui.py
 
@@ -22,7 +22,7 @@ example:
 [Desktop Entry]
 Name=Lossless Scaling Frame Generation
 Comment=Lossless Scaling Frame Generation UI
-Exec=python /full/path/to/lsfg-vk-ui.py
+Exec=python /path/to/lsfg-vk-ui.py
 Icon=/icon/if/you/want.png
 
 ```
