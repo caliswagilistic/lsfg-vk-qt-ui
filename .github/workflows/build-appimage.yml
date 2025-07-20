@@ -48,21 +48,25 @@ jobs:
             echo "No plugins folder found, skipping prune step."
           fi
 
-      - name: Install system dependencies for running AppImage build
+      - name: Install system dependencies for AppImage build
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1 fuse libxkbcommon-x11-0
+          sudo apt-get install -y \
+            libegl1 libgl1 fuse libxkbcommon-x11-0 \
+            libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-shape0 \
+            libxcb-render-util0 libxcb-xkb1 libxcb-image0
 
       - name: Download linuxdeployqt
         run: |
           wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod +x linuxdeployqt-continuous-x86_64.AppImage
 
-      - name: Build AppImage using linuxdeployqt on executable
+      - name: Build AppImage
         run: |
           ./linuxdeployqt-continuous-x86_64.AppImage \
             dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
             -appimage \
+            -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
             -verbose=2
 
       - name: Upload AppImage artifact
