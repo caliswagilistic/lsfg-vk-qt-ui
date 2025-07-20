@@ -11,101 +11,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller PySide6 toml
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PySide6 toml
 
-    - name: Create PyInstaller spec file dynamically
-      run: |
-        cat > lsfg-vk-qt-ui.spec <<'EOF'
-block_cipher = None
+      - name: Build executable with PyInstaller
+        run: |
+          pyinstaller lsfg-vk-qt-ui.spec
 
-a = Analysis(
-    ['src/lsfg-vk-qt-ui.py'],
-    pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
-    hookspath=[],
-    excludes=[
-        'PySide6.QtWebEngineCore', 'PySide6.QtQml', 'PySide6.QtQuick',
-        'PySide6.QtQuickWidgets', 'PySide6.QtWebSockets', 'PySide6.QtTest',
-        'PySide6.QtNetwork', 'PySide6.QtSerialPort', 'PySide6.QtPositioning',
-        'PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'PySide6.QtBluetooth',
-        'PySide6.Qt3DCore', 'PySide6.Qt3DInput', 'PySide6.Qt3DLogic',
-        'PySide6.Qt3DRender', 'PySide6.Qt3DAnimation', 'PySide6.Qt3DExtras',
-        'PySide6.QtPrintSupport', 'PySide6.QtSvg', 'PySide6.QtUiTools',
-        'PySide6.QtWebChannel',
-    ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
+      - name: Strip and compress binary
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx
+          strip dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
+          upx --best dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+      - name: Download linuxdeployqt
+        run: |
+          wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x linuxdeployqt-continuous-x86_64.AppImage
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='lsfg-vk-qt-ui',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=True,
-    upx=True,
-    console=False,
-)
+      - name: Prune unused Qt plugins to reduce size
+        run: |
+          PLUGINS_DIR=dist/lsfg-vk-qt-ui/plugins
+          find "$PLUGINS_DIR" -type d ! -name platforms -exec rm -rf {} +
+          find "$PLUGINS_DIR/platforms" -type f ! -name 'libqxcb.so' -delete || true
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=True,
-    upx=True,
-    name='lsfg-vk-qt-ui',
-)
-EOF
+      - name: Build AppImage
+        run: |
+          ./linuxdeployqt-continuous-x86_64.AppImage dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui -appimage -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui
 
-    - name: Build executable with PyInstaller
-      run: |
-        pyinstaller lsfg-vk-qt-ui.spec
-
-    - name: Strip and compress binary
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y upx
-        strip dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
-        upx --best dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
-
-    - name: Download linuxdeployqt
-      run: |
-        wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-        chmod +x linuxdeployqt-continuous-x86_64.AppImage
-
-    - name: Prune unused Qt plugins to reduce size
-      run: |
-        PLUGINS_DIR=dist/lsfg-vk-qt-ui/plugins
-        find "$PLUGINS_DIR" -type d ! -name platforms -exec rm -rf {} +
-        find "$PLUGINS_DIR/platforms" -type f ! -name 'libqxcb.so' -delete || true
-
-    - name: Build AppImage
-      run: |
-        ./linuxdeployqt-continuous-x86_64.AppImage dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui -appimage -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui
-
-    - name: Upload AppImage artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: appimage
-        path: '*.AppImage'
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: appimage
+          path: '*.AppImage'
