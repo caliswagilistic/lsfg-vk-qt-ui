@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6 toml
@@ -53,6 +53,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1 fuse
 
+      - name: Copy desktop file and icon into dist folder
+        run: |
+          cp assets/lsfg-vk-qt-ui.desktop dist/lsfg-vk-qt-ui/
+          cp assets/lsfg-vk-qt-ui.png dist/lsfg-vk-qt-ui/
+
       - name: Download linuxdeployqt
         run: |
           wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
@@ -64,8 +69,6 @@ jobs:
             dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
             -appimage \
             -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
-            -desktop=assets/lsfg-vk-qt-ui.desktop \
-            -icon=assets/lsfg-vk-qt-ui.png \
             -verbose=2
 
       - name: Upload AppImage artifact
