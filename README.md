@@ -11,9 +11,11 @@ install dependencies with:
 ```bash
 pip install PySide6 toml
 ```
-run with
+download and run with
 ```bash
-python /path/to/lsfg-vk-ui.py
+git clone https://github.com/caliswagilistic/lsfg-vk-qt-ui.git
+cd lsfg-vk-qt-ui
+python lsfg-vk-qt-ui.py
 ```
 would recommended creating a .desktop file that with an exec of Exec=python /path/to/lsfg-vk-ui.py
 
@@ -26,5 +28,7 @@ Exec=python /path/to/lsfg-vk-ui.py
 Icon=/icon/if/you/want.png
 
 ```
+
+![example](example.png)
 
 dont expect much in terms of updates, i have no idea what im doing
