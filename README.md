@@ -29,6 +29,9 @@ Icon=/icon/if/you/want.png
 
 ```
 
+
+heres a screenshot of the app:
+
 ![example](example.png)
 
 dont expect much in terms of updates, i have no idea what im doing
