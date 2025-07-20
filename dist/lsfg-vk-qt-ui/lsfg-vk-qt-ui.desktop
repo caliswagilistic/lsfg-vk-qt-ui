@@ -1,9 +1,0 @@
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=LSFG VK QT UI
-Comment=Lossless Scaling Frame Generation QT User Interface
-Exec=lsfg-vk-qt-ui
-Icon=ls.png
-Terminal=false
-Categories=Utility;
