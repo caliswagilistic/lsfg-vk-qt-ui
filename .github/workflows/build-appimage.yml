@@ -48,6 +48,9 @@ jobs:
             echo "No plugins folder found, skipping prune step."
           fi
 
+      - name: Install FUSE (required for running AppImages)
+        run: sudo apt-get update && sudo apt-get install -y fuse
+
       - name: Download linuxdeployqt
         run: |
           wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
