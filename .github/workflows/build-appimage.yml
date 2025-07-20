@@ -58,11 +58,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1 fuse
 
-      - name: Copy desktop file and icon into dist folder
-        run: |
-          cp assets/lsfg-vk-qt-ui.desktop dist/lsfg-vk-qt-ui/
-          cp assets/lsfg-vk-qt-ui.png dist/lsfg-vk-qt-ui/
-
       - name: Download linuxdeployqt
         run: |
           wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
