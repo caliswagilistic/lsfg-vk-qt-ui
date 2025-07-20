@@ -24,14 +24,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6 toml
 
-      - name: Clean previous build outputs
-        run: |
-          rm -rf dist/lsfg-vk-qt-ui build
-          mkdir -p dist/lsfg-vk-qt-ui/plugins
-
       - name: Build executable with PyInstaller
         run: |
-          pyinstaller -y lsfg-vk-qt-ui.spec
+          pyinstaller lsfg-vk-qt-ui.spec
 
       - name: Strip and compress binary
         run: |
@@ -53,10 +48,11 @@ jobs:
             echo "No plugins folder found, skipping prune step."
           fi
 
-      - name: Install system libraries required for OpenGL and FUSE
+      - name: Install system libraries required for OpenGL, FUSE, and Qt plugins
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libgl1 fuse
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-render-util0 libxcb-image0 libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-shape0 libxcb-xkb1
 
       - name: Download linuxdeployqt
         run: |
