@@ -26,7 +26,7 @@ jobs:
 
     - name: Create PyInstaller spec file dynamically
       run: |
-        echo "
+        cat > lsfg-vk-qt-ui.spec <<'EOF'
 block_cipher = None
 
 a = Analysis(
@@ -76,7 +76,7 @@ coll = COLLECT(
     upx=True,
     name='lsfg-vk-qt-ui',
 )
-" > lsfg-vk-qt-ui.spec
+EOF
 
     - name: Build executable with PyInstaller
       run: |
