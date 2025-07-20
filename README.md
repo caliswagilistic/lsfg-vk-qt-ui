@@ -30,7 +30,7 @@ example:
 Name=Lossless Scaling Frame Generation
 Comment=Lossless Scaling Frame Generation UI
 Exec=python /path/to/lsfg-vk-ui.py
-Icon=/icon/if/you/want.png
+Icon=steam_icon_993090
 
 ```
 
