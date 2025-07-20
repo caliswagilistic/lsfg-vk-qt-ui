@@ -440,7 +440,12 @@ class MainWindow(QMainWindow):
         highlight = pal.color(QPalette.Highlight).name()
         highlight_text = pal.color(QPalette.HighlightedText).name()
 
-        style = f"""
+        highlight = pal.color(QPalette.Highlight).name()
+        highlight_text = pal.color(QPalette.HighlightedText).name()
+        gray = pal.color(QPalette.Button).name()
+        gray_text = pal.color(QPalette.ButtonText).name()
+
+        add_style = f"""
             QPushButton {{
                 background-color: {highlight};
                 color: {highlight_text};
@@ -450,34 +455,41 @@ class MainWindow(QMainWindow):
             QPushButton::hover {{
                 background-color: {highlight};
             }}
-            QToolTip {{
-                color: black;
-                background-color:
-                border: 1px solid gray;
-                padding: 4px;
+        """
+
+        gray_style = f"""
+            QPushButton {{
+                background-color: {gray};
+                color: {gray_text};
+                font-weight: normal;
+                border-radius: 4px;
+            }}
+            QPushButton::hover {{
+                background-color: {gray};
             }}
         """
 
         add_btn = QPushButton("+")
         add_btn.setFixedSize(110, 33)
         add_btn.setToolTip("Add profile")
-        add_btn.setStyleSheet(style)
+        add_btn.setStyleSheet(add_style)
         add_btn.clicked.connect(self.create_profile)
         btn_layout.addWidget(add_btn)
 
         edit_btn = QPushButton("✎")
         edit_btn.setFixedSize(55, 33)
         edit_btn.setToolTip("Edit profile")
-        edit_btn.setStyleSheet(style)
+        edit_btn.setStyleSheet(gray_style)
         edit_btn.clicked.connect(self.rename_profile)
         btn_layout.addWidget(edit_btn)
 
         delete_btn = QPushButton("🗑")
         delete_btn.setFixedSize(55, 33)
         delete_btn.setToolTip("Delete profile")
-        delete_btn.setStyleSheet(style)
+        delete_btn.setStyleSheet(gray_style)
         delete_btn.clicked.connect(self.delete_profile)
         btn_layout.addWidget(delete_btn)
+
 
         btn_layout.addStretch()
 
