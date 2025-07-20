@@ -24,9 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6 toml
 
+      - name: Clean previous build outputs
+        run: |
+          rm -rf dist/lsfg-vk-qt-ui build
+          mkdir -p dist/lsfg-vk-qt-ui/plugins
+
       - name: Build executable with PyInstaller
         run: |
-          pyinstaller lsfg-vk-qt-ui.spec
+          pyinstaller -y lsfg-vk-qt-ui.spec
 
       - name: Strip and compress binary
         run: |
