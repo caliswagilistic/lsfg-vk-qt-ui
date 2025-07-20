@@ -12,6 +12,13 @@ import toml
 
 CONFIG_PATH = os.getenv("LSFG_CONFIG") or os.path.expanduser("~/.config/lsfg-vk/conf.toml")
 
+def ensure_config_exists():
+    config_dir = os.path.dirname(CONFIG_PATH)
+    if not os.path.exists(CONFIG_PATH):
+        os.makedirs(config_dir, exist_ok=True)
+        with open(CONFIG_PATH, "w") as f:
+            f.write("version = 1\n")
+
 
 class ToggleSwitch(QAbstractButton):
     def __init__(self, parent=None, width=50, height=25):
@@ -507,7 +514,9 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    ensure_config_exists()
     app = QApplication(sys.argv)
     win = MainWindow()
     win.show()
     sys.exit(app.exec())
+
