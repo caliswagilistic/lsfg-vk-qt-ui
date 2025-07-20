@@ -26,3 +26,5 @@ Exec=python /path/to/lsfg-vk-ui.py
 Icon=/icon/if/you/want.png
 
 ```
+
+dont expect much in terms of updates, i have no idea what im doing
