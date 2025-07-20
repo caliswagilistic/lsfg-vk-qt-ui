@@ -38,10 +38,10 @@ heres a screenshot of the app:
 
 ![example](example.png)
 
+## disclaimer
 this application is held together by numerous paperclips and rubber bands
 
-i would add an appimage but it made the app look significantly worse for me and im too lazy to figure it out right now
+i would add an appimage but it made the app look significantly worse for me and im too lazy to figure it out right now (probably just dumb)
 
-i should probably add code comments
-
+updates are not guaranteed, things will likely break if they dont already
 
