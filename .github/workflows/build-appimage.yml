@@ -48,8 +48,10 @@ jobs:
             echo "No plugins folder found, skipping prune step."
           fi
 
-      - name: Install FUSE (required for running AppImages)
-        run: sudo apt-get update && sudo apt-get install -y fuse
+      - name: Install system libraries required for OpenGL and FUSE
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 fuse
 
       - name: Download linuxdeployqt
         run: |
@@ -58,7 +60,13 @@ jobs:
 
       - name: Build AppImage
         run: |
-          ./linuxdeployqt-continuous-x86_64.AppImage dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui -appimage -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui
+          ./linuxdeployqt-continuous-x86_64.AppImage \
+            dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
+            -appimage \
+            -executable=dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
+            -desktop=assets/lsfg-vk-qt-ui.desktop \
+            -icon=assets/lsfg-vk-qt-ui.png \
+            -verbose=2
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
