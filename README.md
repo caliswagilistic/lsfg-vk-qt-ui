@@ -39,3 +39,7 @@ heres a screenshot of the app:
 ![example](example.png)
 
 this application is held together by numerous paperclips and rubber bands
+
+i should probably add code comments
+
+
