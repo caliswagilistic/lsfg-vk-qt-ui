@@ -11,6 +11,20 @@ import os
 import toml
 
 CONFIG_PATH = os.getenv("LSFG_CONFIG") or os.path.expanduser("~/.config/lsfg-vk/conf.toml")
+DEFAULT_PROFILE_PATH = os.path.expanduser("~/.config/lsfg-vk-qt-ui/default.toml")
+DEFAULT_PROFILE_NAME = "Default"
+
+DISPLAY_NAMES_PATH = os.path.expanduser("~/.config/lsfg-vk-qt-ui/displaynames.toml")
+
+def load_display_names():
+    if os.path.exists(DISPLAY_NAMES_PATH):
+        return toml.load(DISPLAY_NAMES_PATH)
+    return {}
+
+def save_display_names(display_names):
+    os.makedirs(os.path.dirname(DISPLAY_NAMES_PATH), exist_ok=True)
+    with open(DISPLAY_NAMES_PATH, "w") as f:
+        toml.dump(display_names, f)
 
 def ensure_config_exists():
     config_dir = os.path.dirname(CONFIG_PATH)
@@ -19,6 +33,89 @@ def ensure_config_exists():
         with open(CONFIG_PATH, "w") as f:
             f.write("version = 1\n")
 
+    default_profile_data = {
+        "exe": DEFAULT_PROFILE_NAME,
+        "multiplier": 2,
+        "flow_scale": 1.0,
+        "performance_mode": False,
+        "hdr_mode": False,
+        "experimental_present_mode": "vsync",
+
+    }
+
+    if not os.path.exists(DEFAULT_PROFILE_PATH):
+        os.makedirs(os.path.dirname(DEFAULT_PROFILE_PATH), exist_ok=True)
+        with open(DEFAULT_PROFILE_PATH, "w") as f:
+            toml.dump(default_profile_data, f)
+
+from PySide6.QtWidgets import QDialog, QLineEdit, QLabel, QVBoxLayout, QDialogButtonBox
+
+class ProfileInputDialog(QDialog):
+    def __init__(self, display_name="", app_name="", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Create Profile")
+
+        layout = QVBoxLayout(self)
+
+        layout.addWidget(QLabel("Profile Name (Optional):"))
+        self.display_name_edit = QLineEdit(display_name)
+        self.display_name_edit.setPlaceholderText("Defaults to app name")
+        layout.addWidget(self.display_name_edit)
+
+        layout.addWidget(QLabel("App:"))
+        self.app_name_edit = QLineEdit(app_name)
+        self.app_name_edit.setPlaceholderText("Find proper name below")
+        layout.addWidget(self.app_name_edit)
+        layout.addSpacing(10)
+
+        self.list_apps_btn = QPushButton("List currently open apps")
+        layout.addWidget(self.list_apps_btn)
+
+        layout.addSpacing(10)
+
+        self.list_apps_btn.clicked.connect(self.list_open_apps)
+
+        from PySide6.QtWidgets import QHBoxLayout
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(buttons)
+        btn_layout.addStretch()
+
+        layout.addLayout(btn_layout)
+
+    def get_inputs(self):
+        return self.display_name_edit.text().strip(), self.app_name_edit.text().strip()
+
+    def list_open_apps(self):
+        bash_script = """
+    for pid in /proc/[0-9]*; do
+        owner=$(stat -c %U "$pid" 2>/dev/null)
+        if [[ "$owner" == "$USER" ]]; then
+            if grep -qi 'vulkan' "$pid/maps" 2>/dev/null; then
+                procname=$(cat "$pid/comm" 2>/dev/null)
+                if [[ -n "$procname" ]]; then
+                    printf "%s\\n" "$procname"
+                fi
+            fi
+        fi
+    done | sort -u
+    """
+        import subprocess
+
+        try:
+            result = subprocess.run(["bash", "-c", bash_script], capture_output=True, text=True, timeout=5)
+            output = result.stdout.strip()
+            if not output:
+                output = "No Vulkan apps found owned by current user."
+        except Exception as e:
+            output = f"Failed to list apps:\n{e}"
+
+        QMessageBox.information(self, "Currently Open Vulkan Apps", output)
 
 class ToggleSwitch(QAbstractButton):
     def __init__(self, parent=None, width=50, height=25):
@@ -70,7 +167,6 @@ class ToggleSwitch(QAbstractButton):
         text_y = (self._h + fm.ascent() - fm.descent()) / 2
         painter.drawText(text_x, text_y, text)
 
-
 class HoverSlider(QSlider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -104,8 +200,8 @@ class HoverSlider(QSlider):
         if self._tooltip_label and self._tooltip_label.isVisible():
             val = self.value()
             self._tooltip_label.setText(f"{val / 100:.2f}")
-            global_pos = self.mapToGlobal(event.pos())
-            x = global_pos.x() - self._tooltip_label.width() // 2
+            global_pos = self.mapToGlobal(event.position().toPoint())
+            x = global_pos.x() - self._tooltip_label.width()
             y = global_pos.y() - 30
             self._tooltip_label.move(x, y)
             self._tooltip_label.adjustSize()
@@ -117,12 +213,11 @@ class HoverSlider(QSlider):
             self._tooltip_label.setText(f"{val / 100:.2f}")
             cursor_pos = self.mapFromGlobal(self.cursor().pos())
             global_pos = self.mapToGlobal(cursor_pos)
-            x = global_pos.x() - self._tooltip_label.width() // 2
+            x = global_pos.x() - self._tooltip_label.width()
             y = global_pos.y() - 30
             self._tooltip_label.move(x, y)
             self._tooltip_label.adjustSize()
             self._tooltip_label.show()
-
 
 class GameProfile:
     def __init__(self, exe="", multiplier="Off", flow_scale=1.0,
@@ -172,65 +267,107 @@ class GameProfile:
             d["experimental_fps_limit"] = self.experimental_fps_limit
         return d
 
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Lossless Scaling Frame Generation")
-        self.resize(900, 500)
+        self.resize(900, 520)
         self.setFixedSize(self.size())
         self.profiles = []
+        self.display_names = load_display_names()
         self.current_index = -1
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.build_layout())
         self.load_profiles()
 
+        self.display_names = {}
+        display_path = os.path.expanduser("~/.config/lsfg-vk-qt-ui/displaynames.toml")
+        if os.path.exists(display_path):
+            try:
+                self.display_names = toml.load(display_path)
+            except Exception:
+                self.display_names = {}
+
+        default_index = next((i for i, p in enumerate(self.profiles) if p.exe == DEFAULT_PROFILE_NAME), -1)
+        if default_index != -1:
+            self.profile_list.setCurrentRow(default_index)
+            self.current_index = default_index
+            self.settings_panel.setEnabled(True)
+            self.update_ui()
+        else:
+            self.current_index = -1
+            self.settings_panel.setEnabled(False)
+            self.clear_settings_panel()
+
     def load_profiles(self):
-        if not os.path.exists(CONFIG_PATH):
-            print("No config file found.")
-            return
-        try:
-            data = toml.load(CONFIG_PATH)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load config file:\n{e}")
-            return
-
-        game_entries = data.get("game", [])
-        if isinstance(game_entries, dict):
-            game_entries = [game_entries]
-
         self.profiles.clear()
         self.profile_list.clear()
-        for entry in game_entries:
-            profile = GameProfile.from_dict(entry)
-            self.profiles.append(profile)
-            self.profile_list.addItem(profile.exe)
+
+        if os.path.exists(DEFAULT_PROFILE_PATH):
+            try:
+                default_data = toml.load(DEFAULT_PROFILE_PATH)
+                default_profile = GameProfile.from_dict(default_data)
+                default_profile.exe = DEFAULT_PROFILE_NAME
+                self.profiles.append(default_profile)
+                self.profile_list.addItem(DEFAULT_PROFILE_NAME)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to load default profile:\n{e}")
+        else:
+            QMessageBox.warning(self, "Warning", "Default profile not found.")
+
+        if os.path.exists(CONFIG_PATH):
+            try:
+                data = toml.load(CONFIG_PATH)
+                game_entries = data.get("game", [])
+                if isinstance(game_entries, dict):
+                    game_entries = [game_entries]
+
+                for entry in game_entries:
+                    profile = GameProfile.from_dict(entry)
+                    if profile.exe != DEFAULT_PROFILE_NAME:
+                        self.profiles.append(profile)
+                        display_name = self.display_names.get(profile.exe, profile.exe)
+                        self.profile_list.addItem(display_name)
+
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to load config file:\n{e}")
 
     def save_profiles(self):
         try:
-            first_line = ""
-            existing = {}
-            if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, "r") as f:
-                    lines = f.readlines()
-                if lines and lines[0].strip().startswith("version"):
-                    first_line = lines[0]
-                    toml_text = "".join(lines[1:])
-                    existing = toml.loads(toml_text)
-                else:
-                    existing = toml.loads("".join(lines))
 
-            data = {"game": [p.to_dict() for p in self.profiles]}
-            if "global" in existing:
-                data["global"] = existing["global"]
+            data = {}
+            if os.path.exists(CONFIG_PATH):
+                try:
+                    data = toml.load(CONFIG_PATH)
+                except Exception:
+                    pass
+
+            data["game"] = [p.to_dict() for p in self.profiles if p.exe != DEFAULT_PROFILE_NAME]
 
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
             with open(CONFIG_PATH, "w") as f:
-                if first_line:
-                    f.write(first_line)
-                    if not first_line.endswith("\n"):
-                        f.write("\n")
                 toml.dump(data, f)
+
+            default_profile = next((p for p in self.profiles if p.exe == DEFAULT_PROFILE_NAME), None)
+            if default_profile:
+                os.makedirs(os.path.dirname(DEFAULT_PROFILE_PATH), exist_ok=True)
+                with open(DEFAULT_PROFILE_PATH, "w") as f:
+                    toml.dump(default_profile.to_dict(), f)
+                    valid_exes = {p.exe for p in self.profiles if p.exe != DEFAULT_PROFILE_NAME}
+                    display_path = os.path.expanduser("~/.config/lsfg-vk-qt-ui/displaynames.toml")
+                    try:
+                        if os.path.exists(display_path):
+                            current_names = toml.load(display_path)
+                        else:
+                            current_names = {}
+                    except Exception:
+                        current_names = {}
+
+                    cleaned = {k: v for k, v in current_names.items() if k in valid_exes}
+
+                    with open(display_path, "w") as f:
+                        toml.dump(cleaned, f)
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save config:\n{e}")
 
@@ -270,23 +407,50 @@ class MainWindow(QMainWindow):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        def make_btn(text, w, h, slot, style=None):
-            btn = QPushButton(text)
-            btn.setFixedSize(w, h)
-            if style:
-                btn.setStyleSheet(style)
-            btn.clicked.connect(slot)
-            return btn
-
         pal = self.palette()
         highlight = pal.color(QPalette.Highlight).name()
         highlight_text = pal.color(QPalette.HighlightedText).name()
 
-        btn_layout.addWidget(make_btn("+", 110, 33, self.create_profile,
-                                    f"background-color: {highlight}; color: {highlight_text}; font-weight: bold; border-radius:4px;"))
+        style = f"""
+            QPushButton {{
+                background-color: {highlight};
+                color: {highlight_text};
+                font-weight: bold;
+                border-radius: 4px;
+            }}
+            QPushButton::hover {{
+                background-color: {highlight};
+            }}
+            QToolTip {{
+                color: black;
+                background-color: #f0f0f0;
+                border: 1px solid gray;
+                padding: 4px;
+            }}
+        """
+
+        add_btn = QPushButton("+")
+        add_btn.setFixedSize(110, 33)
+        add_btn.setToolTip("Add profile")
+        add_btn.setStyleSheet(style)
+        add_btn.clicked.connect(self.create_profile)
+        btn_layout.addWidget(add_btn)
+
+        edit_btn = QPushButton("✎")
+        edit_btn.setFixedSize(55, 33)
+        edit_btn.setToolTip("Edit profile")
+        edit_btn.setStyleSheet(style)
+        edit_btn.clicked.connect(self.rename_profile)
+        btn_layout.addWidget(edit_btn)
+
+        delete_btn = QPushButton("🗑")
+        delete_btn.setFixedSize(55, 33)
+        delete_btn.setToolTip("Delete profile")
+        delete_btn.setStyleSheet(style)
+        delete_btn.clicked.connect(self.delete_profile)
+        btn_layout.addWidget(delete_btn)
+
         btn_layout.addStretch()
-        btn_layout.addWidget(make_btn("✎", 55, 33, self.rename_profile))
-        btn_layout.addWidget(make_btn("🗑", 55, 33, self.delete_profile))
 
         layout.addLayout(btn_layout)
 
@@ -295,15 +459,28 @@ class MainWindow(QMainWindow):
         sidebar.setLayout(layout)
         return sidebar
 
+
     def build_settings(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(25, 25, 25, 25)
         layout.setSpacing(16)
         layout.setAlignment(Qt.AlignTop)
 
+        name_container = QWidget()
+        name_container.setFixedHeight(48)
+        name_layout = QVBoxLayout(name_container)
+        name_layout.setContentsMargins(0, 0, 0, 0)
+        name_layout.setSpacing(0)
+
         self.profile_name_label = QLabel()
         self.profile_name_label.setStyleSheet("font-weight: bold; font-size: 22pt;")
-        layout.addWidget(self.profile_name_label)
+        name_layout.addWidget(self.profile_name_label)
+
+        self.real_name_label = QLabel()
+        self.real_name_label.setStyleSheet("font-size: 9pt; color: gray; margin-top: 0px;")
+        name_layout.addWidget(self.real_name_label)
+
+        layout.addWidget(name_container)
 
         def section_label(text):
             lbl = QLabel(text)
@@ -428,16 +605,43 @@ class MainWindow(QMainWindow):
             self.save_profiles()
 
     def create_profile(self):
-        text, ok = QInputDialog.getText(self, "Create Profile", "Enter profile name:")
-        if ok and text:
-            if any(p.exe == text for p in self.profiles):
-                QMessageBox.warning(self, "Error", "Profile already exists.")
+        default_app_name = ""
+        default_display_name = ""
+
+        dlg = ProfileInputDialog(display_name=default_display_name, app_name=default_app_name, parent=self)
+        if dlg.exec() == QDialog.Accepted:
+            display_name, app_name = dlg.get_inputs()
+
+            if not app_name:
+                QMessageBox.warning(self, "Error", "App Name cannot be empty.")
                 return
-            p = GameProfile(exe=text)
-            self.profiles.append(p)
-            self.profile_list.addItem(p.exe)
+            if app_name == DEFAULT_PROFILE_NAME or any(p.exe == app_name for p in self.profiles):
+                QMessageBox.warning(self, "Error", "Profile already exists or name is reserved.")
+                return
+
+            if os.path.exists(DEFAULT_PROFILE_PATH):
+                try:
+                    default_data = toml.load(DEFAULT_PROFILE_PATH)
+                    new_profile = GameProfile.from_dict(default_data)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Failed to load Default profile:\n{e}")
+                    new_profile = GameProfile()
+            else:
+                new_profile = GameProfile()
+
+            new_profile.exe = app_name
+            self.profiles.append(new_profile)
+
+            self.display_names[app_name] = display_name if display_name else app_name
+            save_display_names(self.display_names)
+
+            self.display_names = load_display_names()
+
+            self.profile_list.addItem(display_name if display_name else app_name)
             self.profile_list.setCurrentRow(len(self.profiles) - 1)
-            self.profile_selected()
+            self.current_index = len(self.profiles) - 1
+
+            self.update_ui()
             self.save_profiles()
 
     def clear_settings_panel(self):
@@ -453,17 +657,46 @@ class MainWindow(QMainWindow):
         if row == -1:
             return
         p = self.profiles[row]
-        text, ok = QInputDialog.getText(self, "Rename Profile", "New name:", text=p.exe)
-        if ok and text:
-            p.exe = text
-            self.profile_list.item(row).setText(text)
+
+        if p.exe == DEFAULT_PROFILE_NAME:
+            QMessageBox.warning(self, "Error", "Cannot rename the Default profile.")
+            return
+
+        dlg = ProfileInputDialog(display_name=self.display_names.get(p.exe, ""), app_name=p.exe, parent=self)
+        if dlg.exec() == QDialog.Accepted:
+            new_display_name, new_app_name = dlg.get_inputs()
+
+            if not new_app_name:
+                QMessageBox.warning(self, "Error", "App Name cannot be empty.")
+                return
+            if new_app_name == DEFAULT_PROFILE_NAME or (new_app_name != p.exe and any(profile.exe == new_app_name for profile in self.profiles)):
+                QMessageBox.warning(self, "Error", "Profile already exists or name is reserved.")
+                return
+
+            old_exe = p.exe
+            p.exe = new_app_name
+
+            if old_exe in self.display_names:
+                del self.display_names[old_exe]
+            self.display_names[new_app_name] = new_display_name if new_display_name else new_app_name
+
+            self.profile_list.item(row).setText(new_display_name if new_display_name else new_app_name)
+
             self.update_ui()
             self.save_profiles()
 
     def delete_profile(self):
         row = self.profile_list.currentRow()
+        if self.profiles[row].exe == DEFAULT_PROFILE_NAME:
+            QMessageBox.warning(self, "Error", "Cannot delete the Default profile.")
+            return
+
         if row == -1:
             return
+        exe_name = self.profiles[row].exe
+        if exe_name in self.display_names:
+            del self.display_names[exe_name]
+            save_display_names(self.display_names)
         del self.profiles[row]
         self.profile_list.takeItem(row)
 
@@ -481,20 +714,38 @@ class MainWindow(QMainWindow):
         self.save_profiles()
 
     def profile_selected(self):
-        self.current_index = self.profile_list.currentRow()
-        if self.current_index != -1:
+        row = self.profile_list.currentRow()
+        if row == -1:
+            self.current_index = -1
+            self.settings_panel.setEnabled(False)
+            self.clear_settings_panel()
+        else:
+            self.current_index = row
             self.settings_panel.setEnabled(True)
             self.update_ui()
 
     def update_ui(self):
         p = self.profiles[self.current_index]
-        self.profile_name_label.setText(f'Profile: "{p.exe}"')
+        if p.exe == DEFAULT_PROFILE_NAME:
+            display_name = DEFAULT_PROFILE_NAME
+        else:
+            display_name = self.display_names.get(p.exe, p.exe)
+        self.profile_name_label.setText(f'Profile: "{display_name}"')
+
+        if p.exe == DEFAULT_PROFILE_NAME:
+            self.real_name_label.setText('Apps added from the add profile button will default to these settings.')
+        elif p.exe != display_name:
+            self.real_name_label.setText(f'App: {p.exe}')
+        else:
+            self.real_name_label.setText("")
+
 
         self.mode_combo.blockSignals(True)
         self.mode_combo.setCurrentText(p.multiplier)
         self.mode_combo.blockSignals(False)
 
         self.present_combo.blockSignals(True)
+
         self.present_combo.setCurrentText(p.experimental_present_mode)
         self.present_combo.blockSignals(False)
 
@@ -512,11 +763,9 @@ class MainWindow(QMainWindow):
         self.flow_slider.setValue(int(p.flow_scale * 100))
         self.flow_slider.blockSignals(False)
 
-
 if __name__ == "__main__":
     ensure_config_exists()
     app = QApplication(sys.argv)
     win = MainWindow()
     win.show()
     sys.exit(app.exec())
-
