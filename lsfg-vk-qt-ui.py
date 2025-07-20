@@ -64,11 +64,11 @@ class ProfileInputDialog(QDialog):
 
         layout.addWidget(QLabel("App:"))
         self.app_name_edit = QLineEdit(app_name)
-        self.app_name_edit.setPlaceholderText("Find proper name below")
+        self.app_name_edit.setPlaceholderText("App to apply LSFG-VK to")
         layout.addWidget(self.app_name_edit)
         layout.addSpacing(10)
 
-        self.list_apps_btn = QPushButton("List currently open apps")
+        self.list_apps_btn = QPushButton("Add a currently open app")
         layout.addWidget(self.list_apps_btn)
 
         layout.addSpacing(10)
@@ -94,7 +94,7 @@ class ProfileInputDialog(QDialog):
 
     def list_open_apps(self):
         import subprocess
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QMessageBox
 
         bash_script = """
         for pid in /proc/[0-9]*; do
@@ -131,7 +131,13 @@ class ProfileInputDialog(QDialog):
             close_btn.clicked.connect(dialog.reject)
 
             def on_item_clicked(item):
-                self.app_name_edit.setText(item.text())
+                app_name = item.text()
+                self.app_name_edit.setText(app_name)
+                QMessageBox.information(
+                    self,
+                    "Restart May Be Required",
+                    f'A restart of "{app_name}" may be required before frame generation is applied.'
+                )
                 dialog.accept()
 
             list_widget.itemClicked.connect(on_item_clicked)
