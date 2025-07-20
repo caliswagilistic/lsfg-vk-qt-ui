@@ -35,16 +35,23 @@ jobs:
           strip dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
           upx --best dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui || true
 
-      - name: Download linuxdeployqt
-        run: |
-          wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-          chmod +x linuxdeployqt-continuous-x86_64.AppImage
+      - name: List dist directory contents for debugging
+        run: ls -lR dist/lsfg-vk-qt-ui/
 
       - name: Prune unused Qt plugins to reduce size
         run: |
           PLUGINS_DIR=dist/lsfg-vk-qt-ui/plugins
-          find "$PLUGINS_DIR" -type d ! -name platforms -exec rm -rf {} +
-          find "$PLUGINS_DIR/platforms" -type f ! -name 'libqxcb.so' -delete || true
+          if [ -d "$PLUGINS_DIR" ]; then
+            find "$PLUGINS_DIR" -type d ! -name platforms -exec rm -rf {} +
+            find "$PLUGINS_DIR/platforms" -type f ! -name 'libqxcb.so' -delete || true
+          else
+            echo "No plugins folder found, skipping prune step."
+          fi
+
+      - name: Download linuxdeployqt
+        run: |
+          wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x linuxdeployqt-continuous-x86_64.AppImage
 
       - name: Build AppImage
         run: |
