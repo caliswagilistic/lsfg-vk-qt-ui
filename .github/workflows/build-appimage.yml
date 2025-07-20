@@ -24,9 +24,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PySide6 toml
 
-      - name: Build executable with PyInstaller (onedir mode)
+      - name: Build executable with PyInstaller
         run: |
-          pyinstaller --onedir src/lsfg-vk-qt-ui.py --name lsfg-vk-qt-ui
+          pyinstaller lsfg-vk-qt-ui.spec
 
       - name: Strip and compress binary
         run: |
@@ -38,20 +38,30 @@ jobs:
       - name: List dist directory contents for debugging
         run: ls -lR dist/lsfg-vk-qt-ui/
 
-      - name: Install system libraries required for OpenGL and FUSE
+      - name: Prune unused Qt plugins to reduce size
+        run: |
+          PLUGINS_DIR=dist/lsfg-vk-qt-ui/plugins
+          if [ -d "$PLUGINS_DIR" ]; then
+            find "$PLUGINS_DIR" -type d ! -name platforms -exec rm -rf {} +
+            find "$PLUGINS_DIR/platforms" -type f ! -name 'libqxcb.so' -delete || true
+          else
+            echo "No plugins folder found, skipping prune step."
+          fi
+
+      - name: Install system dependencies for running AppImage build
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libgl1 fuse
+          sudo apt-get install -y libegl1 libgl1 fuse libxkbcommon-x11-0
 
       - name: Download linuxdeployqt
         run: |
           wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod +x linuxdeployqt-continuous-x86_64.AppImage
 
-      - name: Build AppImage using linuxdeployqt on AppDir folder
+      - name: Build AppImage using linuxdeployqt on executable
         run: |
           ./linuxdeployqt-continuous-x86_64.AppImage \
-            dist/lsfg-vk-qt-ui/ \
+            dist/lsfg-vk-qt-ui/lsfg-vk-qt-ui \
             -appimage \
             -verbose=2
 
