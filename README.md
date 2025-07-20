@@ -29,6 +29,7 @@ Icon=/icon/if/you/want.png
 
 ```
 
+for the "Game Profiles" just put the name of the executable you want it on.
 
 heres a screenshot of the app:
 
