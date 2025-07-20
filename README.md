@@ -1,12 +1,12 @@
 # lsfg-vk-qt-ui
 qt user interface for lsfg-vk
 ## dependencies
-
+- [lsfg-vk](https://github.com/PancakeTAS/lsfg-vk/)
 - Python 3.7+
 - [PySide6](https://pypi.org/project/PySide6/)
 - [toml](https://pypi.org/project/toml/)
 
-install dependencies with:
+install dependencies (besides lsfg-vk) with:
 
 ```bash
 pip install PySide6 toml
