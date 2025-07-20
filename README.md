@@ -40,6 +40,8 @@ heres a screenshot of the app:
 
 this application is held together by numerous paperclips and rubber bands
 
+i would add an app image but it made the app look significantly worse for me and im too lazy to figure it out right now
+
 i should probably add code comments
 
 
